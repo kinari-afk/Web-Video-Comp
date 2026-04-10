@@ -134,31 +134,25 @@
         load();
       }, []);
 
-      // ファイルの読み込み処理
+      // ファイルの読み込み処理 (iOS対策で極限までシンプル化)
       const handleFileChange = (e) => {
         try {
-          const fileList = e.target.files;
-          if (!fileList || fileList.length === 0) {
+          const file = e.target.files && e.target.files[0];
+          
+          // ファイルが取得できなければ何もしない
+          if (!file) {
             return;
           }
 
-          const file = fileList[0];
-
-          if (file.size === 0) {
-            alert('ファイルのデータが取得できませんでした（0バイト）。iCloudからのダウンロードが完了していないか、形式が非対応の可能性があります。');
-            setInputKey(Date.now());
-            return;
-          }
-
-          // クラッシュを防ぐためのサイズ警告
+          // クラッシュを防ぐためのサイズ警告 (300MB)
           const MAX_SIZE_MB = 300;
           if (file.size && file.size > MAX_SIZE_MB * 1024 * 1024) {
             alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\niPhoneのブラウザ制限により処理中にクラッシュする可能性が高いため、${MAX_SIZE_MB}MB以下の動画を選択してください。`);
-            setInputKey(Date.now()); // 選択をリセット
+            setInputKey(Date.now()); // 選択をリセットしてやり直せるようにする
             return;
           }
 
-          // 即座にStateへ保存する
+          // すぐにStateへ保存して画面に反映させる
           setVideoFile(file);
           setCompressedFileUrl(null);
           setProgress(0);
@@ -209,7 +203,8 @@
         const outputName = 'output.mp4';
 
         try {
-          await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
+          const inputBuffer = await videoFile.arrayBuffer();
+          await ffmpeg.writeFile(inputName, new Uint8Array(inputBuffer));
 
           let command = ['-i', inputName];
           command.push('-vcodec', 'libx264');
@@ -305,7 +300,7 @@
                   <input 
                     key={inputKey}
                     type="file" 
-                    accept="video/mp4,video/quicktime,video/x-m4v,video/*,.mp4,.mov" 
+                    accept="video/*" 
                     onChange={handleFileChange} 
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
                     disabled={isCompressing}
