@@ -99,7 +99,6 @@
       const [compressedFileUrl, setCompressedFileUrl] = useState(null);
       const [compressedSize, setCompressedSize] = useState(0);
       
-      const [isFileLoading, setIsFileLoading] = useState(false); // 読み込み中の状態を追加
       const [isCompressing, setIsCompressing] = useState(false);
       const [progress, setProgress] = useState(0);
       const [compressionLevel, setCompressionLevel] = useState('medium');
@@ -134,49 +133,34 @@
         load();
       }, []);
 
-      const handleFileSelect = (file) => {
-        if (!file) {
-          setIsFileLoading(false);
-          return;
-        }
-
-        // クラッシュを防ぐためのサイズ警告
-        const MAX_SIZE_MB = 300;
-        if (file.size && file.size > MAX_SIZE_MB * 1024 * 1024) {
-          alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\niPhoneのブラウザ制限により処理中にクラッシュする可能性が高いため、${MAX_SIZE_MB}MB以下の動画を選択してください。`);
-          setIsFileLoading(false);
-          return;
-        }
-
-        setVideoFile(file);
-        setCompressedFileUrl(null);
-        setProgress(0);
-        setIsFileLoading(false); // 読み込み完了
-      };
-
+      // ファイルの読み込み処理（iOS対策で遅延処理を一切挟まない）
       const handleFileChange = (e) => {
         try {
-          // Reactのイベントから確実にターゲットを取得
-          const target = e.target || e.nativeEvent.target;
-          const file = target.files && target.files[0];
-          
-          if (file) {
-            setIsFileLoading(true); // 読み込み中に設定
-            // UIにローディングを表示させるため、少し遅延して処理を実行
-            setTimeout(() => {
-              handleFileSelect(file);
-            }, 100);
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+
+          // クラッシュを防ぐためのサイズ警告
+          const MAX_SIZE_MB = 300;
+          if (file.size && file.size > MAX_SIZE_MB * 1024 * 1024) {
+            alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\niPhoneのブラウザ制限により処理中にクラッシュする可能性が高いため、${MAX_SIZE_MB}MB以下の動画を選択してください。`);
+            e.target.value = ''; // 選択をリセット
+            return;
           }
+
+          // iOSでデータが破棄される前に、即座にStateへ保存する
+          setVideoFile(file);
+          setCompressedFileUrl(null);
+          setProgress(0);
+          
         } catch (err) {
           alert('ファイルの読み込みに失敗しました。詳細: ' + err.message);
-          setIsFileLoading(false);
         }
       };
 
       // ドラッグ＆ドロップイベントハンドラ (PC向け)
       const handleDragOver = (e) => {
         e.preventDefault();
-        if (!isCompressing && !isFileLoading) setIsDragActive(true);
+        if (!isCompressing) setIsDragActive(true);
       };
       const handleDragLeave = (e) => {
         e.preventDefault();
@@ -185,12 +169,18 @@
       const handleDrop = (e) => {
         e.preventDefault();
         setIsDragActive(false);
-        if (isCompressing || isFileLoading) return;
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          setIsFileLoading(true);
-          setTimeout(() => {
-            handleFileSelect(e.dataTransfer.files[0]);
-          }, 100);
+        if (isCompressing) return;
+        
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) {
+          const MAX_SIZE_MB = 300;
+          if (file.size && file.size > MAX_SIZE_MB * 1024 * 1024) {
+            alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\n${MAX_SIZE_MB}MB以下の動画を選択してください。`);
+            return;
+          }
+          setVideoFile(file);
+          setCompressedFileUrl(null);
+          setProgress(0);
         }
       };
 
@@ -260,11 +250,14 @@
                 サーバーにアップロードせず、ブラウザ内で安全に動画を圧縮します。
               </p>
               <div className="text-xs text-gray-500 bg-gray-100 p-3 rounded-xl inline-block text-left mt-2 border border-gray-200">
-                <p className="font-bold mb-1 text-gray-700">💡 ご利用の目安</p>
+                <p className="font-bold mb-1 text-gray-700">💡 ご利用の目安と注意</p>
                 <ul className="list-disc list-inside space-y-1">
                   <li><strong>スマホ:</strong> 数分程度の短い動画（目安: 300MB以下）</li>
                   <li><strong>PC:</strong> より大きな動画も処理可能（Chrome推奨）</li>
                 </ul>
+                <div className="mt-2 text-red-500 font-semibold bg-red-50 p-2 rounded">
+                  【重要】iPhoneで動画を選択した際、OS側で動画の準備を行うため、画面が数秒〜数十秒ほど固まったように見える場合があります。そのままお待ちください。
+                </div>
               </div>
             </header>
 
@@ -292,51 +285,39 @@
                 <div 
                   className={`border-2 border-dashed rounded-2xl p-6 md:p-10 text-center transition-all duration-200 ${
                     isDragActive ? 'drag-active' : 'border-gray-300 bg-gray-50'
-                  } ${isCompressing || isFileLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                  } ${isCompressing ? 'opacity-50 pointer-events-none' : ''}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
                   <div className="flex flex-col items-center justify-center space-y-4">
-                    {isFileLoading ? (
-                      <div className="flex flex-col items-center justify-center space-y-4 py-4">
-                        <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-                        <div>
-                          <div className="text-lg font-bold text-gray-700">動画を読み込んでいます...</div>
-                          <div className="text-sm text-gray-500 mt-1">ファイルサイズによっては少し時間がかかります</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                          <UploadIcon className="w-8 h-8" />
-                        </div>
-                        <div>
-                          <div className="text-lg font-bold text-gray-700">動画を選択してください</div>
-                          <div className="text-sm text-gray-500 mt-1">下のボタンをタップしてカメラロールを開きます</div>
-                        </div>
-                        
-                        {/* ネイティブのinputを明示的に配置し、Tailwindで直接スタイリング */}
-                        <input 
-                          type="file" 
-                          accept="video/*" 
-                          onChange={handleFileChange} 
-                          className="mt-4 block w-full max-w-xs mx-auto text-sm text-gray-500
-                                     file:mr-4 file:py-3 file:px-6 
-                                     file:rounded-full file:border-0 
-                                     file:text-sm file:font-semibold 
-                                     file:bg-blue-600 file:text-white 
-                                     hover:file:bg-blue-700 
-                                     cursor-pointer"
-                          disabled={isCompressing || isFileLoading}
-                        />
-                      </>
-                    )}
+                    <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                      <UploadIcon className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-gray-700">動画を選択してください</div>
+                      <div className="text-sm text-gray-500 mt-1">下のボタンをタップしてカメラロールを開きます</div>
+                    </div>
+                    
+                    {/* ネイティブのinputを明示的に配置し、Tailwindで直接スタイリング */}
+                    <input 
+                      type="file" 
+                      accept="video/*" 
+                      onChange={handleFileChange} 
+                      className="mt-4 block w-full max-w-xs mx-auto text-sm text-gray-500
+                                 file:mr-4 file:py-3 file:px-6 
+                                 file:rounded-full file:border-0 
+                                 file:text-sm file:font-semibold 
+                                 file:bg-blue-600 file:text-white 
+                                 hover:file:bg-blue-700 
+                                 cursor-pointer"
+                      disabled={isCompressing}
+                    />
                   </div>
                 </div>
 
                 {/* ファイル情報と設定エリア */}
-                {videoFile && !isFileLoading && (
+                {videoFile && (
                   <div className="space-y-6 animate-fade-in">
                     
                     {/* ファイル情報 */}
@@ -429,7 +410,7 @@
                 )}
 
                 {/* 完了結果 */}
-                {compressedFileUrl && !isCompressing && !isFileLoading && (
+                {compressedFileUrl && !isCompressing && (
                   <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-6 rounded-2xl space-y-6 animate-fade-in">
                     <div className="text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 text-green-600 rounded-full mb-3">
