@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>動画圧縮アプリ</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- FFmpeg.wasm (v0.12 - 最新シングルスレッド版) -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+    /* ドラッグ＆ドロップ用ハイライト */
+    .drag-active {
+      border-color: #3b82f6 !important;
+      background-color: #eff6ff !important;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const { FFmpeg } = window.FFmpegWASM;
+    const { fetchFile, toBlobURL } = window.FFmpegUtil;
+
+    // --- Workerのパッチ処理 ---
+    // ブラウザのセキュリティ制約（COOP/COEP未設定）による SharedArrayBuffer エラーを回避するため、
+    // シングルスレッド版 (v0.12) を使用します。
+    // また、v0.12のUMDビルドに存在する「Module Worker内で importScripts を呼んでしまう」制限を
+    // 回避するため、Worker生成時に type: 'module' を除去するパッチを当てます。
+    if (!window.__WORKER_PATCHED__) {
+      const OriginalWorker = window.Worker;
+      window.Worker = class extends OriginalWorker {
+        constructor(url, options) {
+          if (options && options.type === 'module') {
+            const newOptions = { ...options };
+            delete newOptions.type;
+            super(url, newOptions);
+          } else {
+            super(url, options);
+          }
+        }
+      };
+      window.__WORKER_PATCHED__ = true;
+    }
+
+    // --- アイコンコンポーネント ---
+    const UploadIcon = ({ className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+    );
+    const VideoIcon = ({ className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
+    );
+    const DownloadIcon = ({ className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+    );
+    const SettingsIcon = ({ className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    );
+
+    // --- ユーティリティ関数 ---
+    const formatBytes = (bytes, decimals = 2) => {
+      if (!+bytes) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    };
+
+    const getExtension = (filename) => {
+      const ext = filename.split('.').pop();
+      return ext ? `.${ext}` : '.mp4';
+    };
+
+    // --- メインアプリケーション ---
+    function App() {
+      const [loaded, setLoaded] = useState(false);
+      const [loadError, setLoadError] = useState(false);
+      const ffmpegRef = useRef(new FFmpeg());
+      
+      const [videoFile, setVideoFile] = useState(null);
+      const [compressedFileUrl, setCompressedFileUrl] = useState(null);
+      const [compressedSize, setCompressedSize] = useState(0);
+      
+      const [isCompressing, setIsCompressing] = useState(false);
+      const [progress, setProgress] = useState(0);
+      const [compressionLevel, setCompressionLevel] = useState('medium');
+      const [isDragActive, setIsDragActive] = useState(false);
+
+      const initRef = useRef(false);
+
+      // 初期化：FFmpeg.wasmの読み込み (v0.12 API)
+      useEffect(() => {
+        if (initRef.current) return;
+        initRef.current = true;
+
+        const load = async () => {
+          const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+          const ffmpeg = ffmpegRef.current;
+
+          ffmpeg.on('progress', ({ progress }) => {
+            setProgress(Math.max(0, Math.min(100, Math.round(progress * 100))));
+          });
+
+          try {
+            console.log("FFmpegファイルの取得を開始...");
+            
+            // すべてBlob URL化してCORSエラーを回避
+            const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+            const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+            const classWorkerURL = await toBlobURL('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js', 'text/javascript');
+
+            console.log("FFmpegコアをロード中...");
+            await ffmpeg.load({
+              coreURL,
+              wasmURL,
+              classWorkerURL
+            });
+            
+            console.log("FFmpegのロードが完了しました");
+            setLoaded(true);
+          } catch (e) {
+            console.error('FFmpegロードエラー:', e);
+            setLoadError(true);
+          }
+        };
+        load();
+      }, []);
+
+      const handleFileSelect = (file) => {
+        if (file && file.type.startsWith('video/')) {
+          setVideoFile(file);
+          setCompressedFileUrl(null);
+          setProgress(0);
+        } else {
+          alert('動画ファイルを選択してください。');
+        }
+      };
+
+      const handleFileChange = (e) => {
+        handleFileSelect(e.target.files[0]);
+      };
+
+      // ドラッグ＆ドロップイベントハンドラ
+      const handleDragOver = (e) => {
+        e.preventDefault();
+        if (!isCompressing) setIsDragActive(true);
+      };
+      const handleDragLeave = (e) => {
+        e.preventDefault();
+        setIsDragActive(false);
+      };
+      const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragActive(false);
+        if (isCompressing) return;
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleFileSelect(e.dataTransfer.files[0]);
+        }
+      };
+
+      // 圧縮処理の実行
+      const compressVideo = async () => {
+        if (!videoFile) return;
+
+        setIsCompressing(true);
+        setProgress(0);
+        setCompressedFileUrl(null);
+
+        const ffmpeg = ffmpegRef.current;
+        const inputName = 'input' + getExtension(videoFile.name);
+        const outputName = 'output.mp4';
+
+        try {
+          // メモリファイルシステムに書き込み (v0.12 API)
+          await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
+
+          let command = ['-i', inputName];
+          command.push('-vcodec', 'libx264');
+          
+          if (compressionLevel === 'low') {
+            command.push('-crf', '23');
+          } else if (compressionLevel === 'medium') {
+            command.push('-crf', '28');
+            command.push('-vf', 'scale=-2:720'); 
+          } else if (compressionLevel === 'high') {
+            command.push('-crf', '32');
+            command.push('-vf', 'scale=-2:480'); 
+          }
+
+          command.push('-preset', 'fast');
+          command.push('-acodec', 'aac'); 
+          command.push(outputName);
+
+          // 変換の実行 (v0.12 API)
+          await ffmpeg.exec(command);
+
+          // 処理結果の読み出し (v0.12 API)
+          const data = await ffmpeg.readFile(outputName);
+          const blob = new Blob([data.buffer], { type: 'video/mp4' });
+          const url = URL.createObjectURL(blob);
+          
+          setCompressedSize(blob.size);
+          setCompressedFileUrl(url);
+        } catch (error) {
+          console.error('圧縮エラー:', error);
+          alert('動画の圧縮中にエラーが発生しました。ファイルサイズが大きすぎるか、未対応の形式の可能性があります。');
+        } finally {
+          setIsCompressing(false);
+          // メモリの解放
+          try {
+            await ffmpeg.deleteFile(inputName);
+            await ffmpeg.deleteFile(outputName);
+          } catch (e) {}
+        }
+      };
+
+      return (
+        <div className="p-4 md:p-8">
+          <div className="max-w-2xl mx-auto space-y-8">
+            {/* ヘッダー */}
+            <header className="text-center space-y-3 mt-4">
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
+                Web Video Compressor
+              </h1>
+              <p className="text-gray-500 text-sm md:text-base">
+                サーバーにアップロードせず、ブラウザ内で安全に動画を圧縮します。<br/>
+                <span className="text-xs text-gray-400">※ブラウザのメモリを使用するため、数GBの巨大なファイルは処理に失敗する場合があります。</span>
+              </p>
+            </header>
+
+            {/* メインコンテンツ */}
+            {loadError ? (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center">
+                <p className="font-bold mb-2">読み込みエラー</p>
+                <p className="text-sm">
+                  動画処理エンジンの読み込みに失敗しました。<br/>
+                  ネットワーク接続を確認するか、ページを再読み込みしてください。
+                </p>
+              </div>
+            ) : !loaded ? (
+              <div className="bg-white p-10 rounded-3xl shadow-sm border border-gray-200 text-center space-y-5">
+                <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                <div>
+                  <p className="text-gray-700 font-medium">システムの準備中...</p>
+                  <p className="text-xs text-gray-400 mt-2">初回アクセス時はファイルのダウンロードに少し時間がかかります（約30MB）。</p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 border border-gray-100 space-y-8">
+                
+                {/* ファイル選択エリア */}
+                <div 
+                  className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-200 ${
+                    isDragActive ? 'drag-active' : 'border-gray-300 hover:border-blue-400 bg-gray-50/50 hover:bg-gray-50'
+                  } ${isCompressing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <input 
+                    type="file" 
+                    accept="video/*" 
+                    onChange={handleFileChange} 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    disabled={isCompressing}
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-4 pointer-events-none">
+                    <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                      <UploadIcon className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-gray-700">クリックして動画を選択</div>
+                      <div className="text-sm text-gray-500 mt-1">または、ここにファイルをドラッグ＆ドロップ</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ファイル情報と設定エリア */}
+                {videoFile && (
+                  <div className="space-y-6 animate-fade-in">
+                    
+                    {/* ファイル情報 */}
+                    <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="p-3 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                        <VideoIcon className="w-6 h-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 truncate">{videoFile.name}</p>
+                        <p className="text-sm text-gray-500">{formatBytes(videoFile.size)}</p>
+                      </div>
+                    </div>
+
+                    {/* 圧縮設定 */}
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-bold text-gray-700 flex items-center space-x-2">
+                        <SettingsIcon className="w-4 h-4 text-gray-500" />
+                        <span>圧縮の強さ</span>
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <button 
+                          onClick={() => setCompressionLevel('low')} 
+                          disabled={isCompressing}
+                          className={`p-4 border-2 rounded-xl text-left transition-all ${
+                            compressionLevel === 'low' ? 'bg-blue-50 border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
+                          }`}
+                        >
+                          <div className={`font-bold ${compressionLevel === 'low' ? 'text-blue-700' : 'text-gray-700'}`}>弱圧縮</div>
+                          <div className="text-xs text-gray-500 mt-1">画質を維持して容量を少し減らします。</div>
+                        </button>
+
+                        <button 
+                          onClick={() => setCompressionLevel('medium')} 
+                          disabled={isCompressing}
+                          className={`p-4 border-2 rounded-xl text-left transition-all ${
+                            compressionLevel === 'medium' ? 'bg-blue-50 border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
+                          }`}
+                        >
+                          <div className={`font-bold ${compressionLevel === 'medium' ? 'text-blue-700' : 'text-gray-700'}`}>標準圧縮 (推奨)</div>
+                          <div className="text-xs text-gray-500 mt-1">画質と容量のバランスが良い設定 (720p)。</div>
+                        </button>
+
+                        <button 
+                          onClick={() => setCompressionLevel('high')} 
+                          disabled={isCompressing}
+                          className={`p-4 border-2 rounded-xl text-left transition-all ${
+                            compressionLevel === 'high' ? 'bg-blue-50 border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
+                          }`}
+                        >
+                          <div className={`font-bold ${compressionLevel === 'high' ? 'text-blue-700' : 'text-gray-700'}`}>強圧縮</div>
+                          <div className="text-xs text-gray-500 mt-1">画質を落として容量を大幅に削減 (480p)。</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 実行ボタンとプログレス */}
+                    <div className="pt-2">
+                      <button 
+                        onClick={compressVideo}
+                        disabled={isCompressing}
+                        className="w-full py-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg shadow-gray-900/20"
+                      >
+                        {isCompressing ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span>処理中... {progress}%</span>
+                          </>
+                        ) : (
+                          <span>この設定で動画を圧縮する</span>
+                        )}
+                      </button>
+
+                      {isCompressing && (
+                        <div className="mt-5 space-y-2 animate-fade-in">
+                          <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
+                            <div 
+                              className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out relative overflow-hidden" 
+                              style={{ width: `${progress}%` }}
+                            >
+                              <div className="absolute top-0 left-0 right-0 bottom-0 bg-white/20 animate-[pulse_1s_ease-in-out_infinite]"></div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-500 text-center font-medium">
+                            ブラウザのタブを閉じたり、再読み込みしないでください
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 完了結果 */}
+                {compressedFileUrl && !isCompressing && (
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-6 rounded-2xl space-y-6 animate-fade-in">
+                    <div className="text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 text-green-600 rounded-full mb-3">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                      <h3 className="text-lg font-bold text-green-900">圧縮が完了しました！</h3>
+                    </div>
+                    
+                    <div className="bg-white rounded-xl p-5 border border-green-100 shadow-sm">
+                      <div className="flex items-center justify-around">
+                        <div className="text-center">
+                          <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">元のサイズ</div>
+                          <div className="text-xl font-medium text-gray-600">{formatBytes(videoFile.size)}</div>
+                        </div>
+                        <div className="text-gray-300">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">圧縮後のサイズ</div>
+                          <div className="text-2xl font-extrabold text-green-700">{formatBytes(compressedSize)}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+                        <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm font-bold rounded-full">
+                          {Math.round((1 - compressedSize / videoFile.size) * 100)}% 削減！
+                        </span>
+                      </div>
+                    </div>
+
+                    <a 
+                      href={compressedFileUrl} 
+                      download={`compressed_${videoFile.name.replace(/\.[^/.]+$/, "")}.mp4`}
+                      className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-green-600/20"
+                    >
+                      <DownloadIcon className="w-5 h-5" />
+                      <span>動画を保存する (MP4)</span>
+                    </a>
+                  </div>
+                )}
+
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
