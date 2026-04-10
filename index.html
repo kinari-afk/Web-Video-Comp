@@ -232,6 +232,46 @@
         }
       };
 
+      // 動画の保存・共有処理
+      const handleSaveVideo = async () => {
+        if (!compressedFileUrl) return;
+
+        const filename = `compressed_${(videoFile.name || 'video').replace(/\.[^/.]+$/, "")}.mp4`;
+
+        try {
+          // URLからBlobを再取得してFileオブジェクトを作成
+          const response = await fetch(compressedFileUrl);
+          const blob = await response.blob();
+          const file = new File([blob], filename, { type: 'video/mp4' });
+
+          // Web Share API がファイルをサポートしているかチェック (スマホ向け)
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: filename
+            });
+          } else {
+            // サポートしていない場合 (PC等) は従来のダウンロード
+            triggerDownload(compressedFileUrl, filename);
+          }
+        } catch (error) {
+          console.error('保存エラー:', error);
+          // エラーが起きた場合やシェアをキャンセルした場合もフォールバック
+          if (error.name !== 'AbortError') {
+             triggerDownload(compressedFileUrl, filename);
+          }
+        }
+      };
+
+      const triggerDownload = (url, filename) => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
       return (
         <div className="p-4 md:p-8">
           <div className="max-w-2xl mx-auto space-y-8">
@@ -435,14 +475,18 @@
                       </div>
                     </div>
 
-                    <a 
-                      href={compressedFileUrl} 
-                      download={`compressed_${(videoFile.name || 'video').replace(/\.[^/.]+$/, "")}.mp4`}
-                      className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-green-600/20"
-                    >
-                      <DownloadIcon className="w-5 h-5" />
-                      <span>動画を保存する (MP4)</span>
-                    </a>
+                    <div>
+                      <button 
+                        onClick={handleSaveVideo}
+                        className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-green-600/20"
+                      >
+                        <DownloadIcon className="w-5 h-5" />
+                        <span>動画を保存 / 共有する (MP4)</span>
+                      </button>
+                      <p className="text-xs text-green-800 text-center mt-3 font-medium">
+                        ※スマホの場合、表示されるメニューから「ビデオを保存」を選ぶとカメラロールに保存できます。
+                      </p>
+                    </div>
                   </div>
                 )}
 
