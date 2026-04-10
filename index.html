@@ -148,7 +148,20 @@
       }, []);
 
       const handleFileSelect = (file) => {
-        if (file && file.type.startsWith('video/')) {
+        if (!file) return;
+
+        // 【iOS対策】iPhoneから動画を選択すると file.type が空文字になることがあるため、拡張子でも判定する
+        const isVideo = file.type.startsWith('video/') || 
+                        file.name.toLowerCase().match(/\.(mp4|mov|m4v|webm|avi)$/i);
+
+        if (isVideo) {
+          // 【iOS対策】iOS Safariはメモリ上限が厳しいため、極端に大きなファイルはクラッシュを防ぐために警告する
+          const MAX_SIZE_MB = 200;
+          if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+            alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\niPhoneのブラウザ制限により処理中にクラッシュする可能性が高いため、${MAX_SIZE_MB}MB以下の動画を選択してください。`);
+            return;
+          }
+
           setVideoFile(file);
           setCompressedFileUrl(null);
           setProgress(0);
@@ -159,6 +172,8 @@
 
       const handleFileChange = (e) => {
         handleFileSelect(e.target.files[0]);
+        // 同じファイルを再度選択できるようにvalueをリセット
+        e.target.value = '';
       };
 
       // ドラッグ＆ドロップイベントハンドラ
@@ -198,16 +213,23 @@
           let command = ['-i', inputName];
           command.push('-vcodec', 'libx264');
           
+          // 【iOS対策】iPhone等で圧縮後に再生できない問題を防ぐため、ピクセルフォーマットを標準的なものに強制する
+          command.push('-pix_fmt', 'yuv420p');
+          
           if (compressionLevel === 'low') {
             command.push('-crf', '23');
           } else if (compressionLevel === 'medium') {
             command.push('-crf', '28');
+            // 幅を偶数に保ちつつ高さを720pxにダウンスケール
             command.push('-vf', 'scale=-2:720'); 
           } else if (compressionLevel === 'high') {
             command.push('-crf', '32');
+            // 幅を偶数に保ちつつ高さを480pxにダウンスケール
             command.push('-vf', 'scale=-2:480'); 
           }
 
+          // シングルスレッドで安定して動かすためスレッド数を1に制限
+          command.push('-threads', '1');
           command.push('-preset', 'fast');
           command.push('-acodec', 'aac'); 
           command.push(outputName);
@@ -224,10 +246,10 @@
           setCompressedFileUrl(url);
         } catch (error) {
           console.error('圧縮エラー:', error);
-          alert('動画の圧縮中にエラーが発生しました。ファイルサイズが大きすぎるか、未対応の形式の可能性があります。');
+          alert('動画の圧縮中にエラーが発生しました。ファイルサイズが大きすぎるか、iPhoneで未対応の形式の可能性があります。');
         } finally {
           setIsCompressing(false);
-          // メモリの解放
+          // メモリの解放（非常に重要）
           try {
             await ffmpeg.deleteFile(inputName);
             await ffmpeg.deleteFile(outputName);
@@ -245,7 +267,7 @@
               </h1>
               <p className="text-gray-500 text-sm md:text-base">
                 サーバーにアップロードせず、ブラウザ内で安全に動画を圧縮します。<br/>
-                <span className="text-xs text-gray-400">※ブラウザのメモリを使用するため、数GBの巨大なファイルは処理に失敗する場合があります。</span>
+                <span className="text-xs text-gray-400">※iPhone Safariのメモリ制限により、200MBを超える大容量ファイルは処理できない場合があります。</span>
               </p>
             </header>
 
@@ -280,7 +302,7 @@
                 >
                   <input 
                     type="file" 
-                    accept="video/*" 
+                    accept="video/*, .mov, .mp4" 
                     onChange={handleFileChange} 
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                     disabled={isCompressing}
@@ -290,8 +312,8 @@
                       <UploadIcon className="w-8 h-8" />
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-gray-700">クリックして動画を選択</div>
-                      <div className="text-sm text-gray-500 mt-1">または、ここにファイルをドラッグ＆ドロップ</div>
+                      <div className="text-lg font-bold text-gray-700">タップして動画を選択</div>
+                      <div className="text-sm text-gray-500 mt-1">カメラロールから選択できます</div>
                     </div>
                   </div>
                 </div>
@@ -306,7 +328,7 @@
                         <VideoIcon className="w-6 h-6" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-gray-900 truncate">{videoFile.name}</p>
+                        <p className="font-medium text-gray-900 truncate">{videoFile.name || '選択された動画'}</p>
                         <p className="text-sm text-gray-500">{formatBytes(videoFile.size)}</p>
                       </div>
                     </div>
@@ -381,7 +403,7 @@
                             </div>
                           </div>
                           <p className="text-xs text-gray-500 text-center font-medium">
-                            ブラウザのタブを閉じたり、再読み込みしないでください
+                            他のアプリを開いたり、画面をロックしないでください
                           </p>
                         </div>
                       )}
@@ -423,7 +445,7 @@
 
                     <a 
                       href={compressedFileUrl} 
-                      download={`compressed_${videoFile.name.replace(/\.[^/.]+$/, "")}.mp4`}
+                      download={`compressed_${(videoFile.name || 'video').replace(/\.[^/.]+$/, "")}.mp4`}
                       className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-green-600/20"
                     >
                       <DownloadIcon className="w-5 h-5" />
