@@ -43,10 +43,6 @@
     const { fetchFile, toBlobURL } = window.FFmpegUtil;
 
     // --- Workerのパッチ処理 ---
-    // ブラウザのセキュリティ制約（COOP/COEP未設定）による SharedArrayBuffer エラーを回避するため、
-    // シングルスレッド版 (v0.12) を使用します。
-    // また、v0.12のUMDビルドに存在する「Module Worker内で importScripts を呼んでしまう」制限を
-    // 回避するため、Worker生成時に type: 'module' を除去するパッチを当てます。
     if (!window.__WORKER_PATCHED__) {
       const OriginalWorker = window.Worker;
       window.Worker = class extends OriginalWorker {
@@ -88,8 +84,9 @@
     };
 
     const getExtension = (filename) => {
+      if (!filename) return '.mp4';
       const ext = filename.split('.').pop();
-      return ext ? `.${ext}` : '.mp4';
+      return ext && ext !== filename ? `.${ext}` : '.mp4';
     };
 
     // --- メインアプリケーション ---
@@ -109,7 +106,6 @@
 
       const initRef = useRef(false);
 
-      // 初期化：FFmpeg.wasmの読み込み (v0.12 API)
       useEffect(() => {
         if (initRef.current) return;
         initRef.current = true;
@@ -123,21 +119,11 @@
           });
 
           try {
-            console.log("FFmpegファイルの取得を開始...");
-            
-            // すべてBlob URL化してCORSエラーを回避
             const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
             const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
             const classWorkerURL = await toBlobURL('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js', 'text/javascript');
 
-            console.log("FFmpegコアをロード中...");
-            await ffmpeg.load({
-              coreURL,
-              wasmURL,
-              classWorkerURL
-            });
-            
-            console.log("FFmpegのロードが完了しました");
+            await ffmpeg.load({ coreURL, wasmURL, classWorkerURL });
             setLoaded(true);
           } catch (e) {
             console.error('FFmpegロードエラー:', e);
@@ -150,12 +136,13 @@
       const handleFileSelect = (file) => {
         if (!file) return;
 
-        // 【iOS対策】iPhoneから動画を選択すると file.type が空文字になることがあるため、拡張子でも判定する
+        // 【iOS対策】iPhoneから動画を選択すると file.type が空文字になることがあるため、判定を大幅に緩くする
         const isVideo = file.type.startsWith('video/') || 
-                        file.name.toLowerCase().match(/\.(mp4|mov|m4v|webm|avi)$/i);
+                        file.type === '' || // iOSは判定不能な空文字を返すことがある
+                        (file.name && file.name.toLowerCase().match(/\.(mp4|mov|m4v|webm|avi|qt)$/i));
 
         if (isVideo) {
-          // 【iOS対策】iOS Safariはメモリ上限が厳しいため、極端に大きなファイルはクラッシュを防ぐために警告する
+          // 【iOS対策】クラッシュを防ぐために警告する
           const MAX_SIZE_MB = 200;
           if (file.size > MAX_SIZE_MB * 1024 * 1024) {
             alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\niPhoneのブラウザ制限により処理中にクラッシュする可能性が高いため、${MAX_SIZE_MB}MB以下の動画を選択してください。`);
@@ -166,14 +153,19 @@
           setCompressedFileUrl(null);
           setProgress(0);
         } else {
-          alert('動画ファイルを選択してください。');
+          alert('動画ファイルとして認識できませんでした。別のファイルをお試しください。');
         }
       };
 
       const handleFileChange = (e) => {
-        handleFileSelect(e.target.files[0]);
-        // 同じファイルを再度選択できるようにvalueをリセット
-        e.target.value = '';
+        const file = e.target.files[0];
+        if (file) {
+          handleFileSelect(file);
+        }
+        // 【iOS対策】即座にvalueを消すとファイル参照が途切れる不具合を防ぐため、少し遅延させる
+        setTimeout(() => {
+          if (e.target) e.target.value = '';
+        }, 500);
       };
 
       // ドラッグ＆ドロップイベントハンドラ
@@ -203,41 +195,33 @@
         setCompressedFileUrl(null);
 
         const ffmpeg = ffmpegRef.current;
-        const inputName = 'input' + getExtension(videoFile.name);
+        const inputName = 'input' + getExtension(videoFile.name || 'video.mp4');
         const outputName = 'output.mp4';
 
         try {
-          // メモリファイルシステムに書き込み (v0.12 API)
           await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
 
           let command = ['-i', inputName];
           command.push('-vcodec', 'libx264');
-          
-          // 【iOS対策】iPhone等で圧縮後に再生できない問題を防ぐため、ピクセルフォーマットを標準的なものに強制する
           command.push('-pix_fmt', 'yuv420p');
           
           if (compressionLevel === 'low') {
             command.push('-crf', '23');
           } else if (compressionLevel === 'medium') {
             command.push('-crf', '28');
-            // 幅を偶数に保ちつつ高さを720pxにダウンスケール
             command.push('-vf', 'scale=-2:720'); 
           } else if (compressionLevel === 'high') {
             command.push('-crf', '32');
-            // 幅を偶数に保ちつつ高さを480pxにダウンスケール
             command.push('-vf', 'scale=-2:480'); 
           }
 
-          // シングルスレッドで安定して動かすためスレッド数を1に制限
           command.push('-threads', '1');
           command.push('-preset', 'fast');
           command.push('-acodec', 'aac'); 
           command.push(outputName);
 
-          // 変換の実行 (v0.12 API)
           await ffmpeg.exec(command);
 
-          // 処理結果の読み出し (v0.12 API)
           const data = await ffmpeg.readFile(outputName);
           const blob = new Blob([data.buffer], { type: 'video/mp4' });
           const url = URL.createObjectURL(blob);
@@ -249,7 +233,6 @@
           alert('動画の圧縮中にエラーが発生しました。ファイルサイズが大きすぎるか、iPhoneで未対応の形式の可能性があります。');
         } finally {
           setIsCompressing(false);
-          // メモリの解放（非常に重要）
           try {
             await ffmpeg.deleteFile(inputName);
             await ffmpeg.deleteFile(outputName);
@@ -302,7 +285,7 @@
                 >
                   <input 
                     type="file" 
-                    accept="video/*, .mov, .mp4" 
+                    accept="video/*, video/mp4, video/quicktime, .mov, .mp4" 
                     onChange={handleFileChange} 
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                     disabled={isCompressing}
