@@ -89,13 +89,6 @@
       return ext && ext !== filename ? `.${ext}` : '.mp4';
     };
 
-    const isVideoLikeFile = (file) => {
-      if (!file) return false;
-      if (file.type && file.type.startsWith('video/')) return true;
-      const name = (file.name || '').toLowerCase();
-      return ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv'].some(ext => name.endsWith(ext));
-    };
-
     // --- メインアプリケーション ---
     function App() {
       const [loaded, setLoaded] = useState(false);
@@ -110,7 +103,6 @@
       const [progress, setProgress] = useState(0);
       const [compressionLevel, setCompressionLevel] = useState('medium');
       const [isDragActive, setIsDragActive] = useState(false);
-      const [inputKey, setInputKey] = useState(Date.now()); // input再生成用キー
 
       const initRef = useRef(false);
 
@@ -141,47 +133,21 @@
         load();
       }, []);
 
-      // ファイルの読み込み処理
-      const handleFileChange = async (e) => {
-        try {
-          const fileList = e.target.files;
-          if (!fileList || fileList.length === 0) {
-            return;
-          }
+      // 【完全シンプル化】余計なチェックやリセットをすべて削除し、純粋にファイルを受け取るだけに変更
+      const handleFileChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
 
-          const file = fileList[0];
-
-          if (!isVideoLikeFile(file)) {
-            alert('動画ファイルを選択してください。');
-            setInputKey(Date.now());
-            return;
-          }
-
-          if (file.size === 0) {
-            alert('ファイルのデータが取得できませんでした（0バイト）。iCloudからのダウンロードが完了していないか、形式が非対応の可能性があります。');
-            setInputKey(Date.now());
-            return;
-          }
-
-          // スマホでのNotReadableError対策: 先に読み取り可否を検証
-          await file.slice(0, 1024).arrayBuffer();
-
-          // クラッシュを防ぐためのサイズ警告
-          const MAX_SIZE_MB = 300;
-          if (file.size && file.size > MAX_SIZE_MB * 1024 * 1024) {
-            alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\niPhoneのブラウザ制限により処理中にクラッシュする可能性が高いため、${MAX_SIZE_MB}MB以下の動画を選択してください。`);
-            setInputKey(Date.now()); // 選択をリセット
-            return;
-          }
-
-          // 即座にStateへ保存する
-          setVideoFile(file);
-          setCompressedFileUrl(null);
-          setProgress(0);
-          
-        } catch (err) {
-          alert('ファイルの読み込みに失敗しました。詳細: ' + err.message);
+        // 最低限のサイズ制限のみ（300MB）
+        const MAX_SIZE_MB = 300;
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+          alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\n${MAX_SIZE_MB}MB以下の動画を選択してください。`);
+          return;
         }
+
+        setVideoFile(file);
+        setCompressedFileUrl(null);
+        setProgress(0);
       };
 
       // ドラッグ＆ドロップイベントハンドラ (PC向け)
@@ -201,14 +167,13 @@
         const file = e.dataTransfer.files && e.dataTransfer.files[0];
         if (file) {
           const MAX_SIZE_MB = 300;
-          if (file.size && file.size > MAX_SIZE_MB * 1024 * 1024) {
-            alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\n${MAX_SIZE_MB}MB以下の動画を選択してください。`);
+          if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+            alert(`ファイルサイズが大きすぎます。\n${MAX_SIZE_MB}MB以下の動画を選択してください。`);
             return;
           }
           setVideoFile(file);
           setCompressedFileUrl(null);
           setProgress(0);
-          setInputKey(Date.now());
         }
       };
 
@@ -310,32 +275,38 @@
             ) : (
               <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 border border-gray-100 space-y-8">
                 
-                {/* ファイル選択エリア */}
+                {/* ファイル選択エリア：透明inputの重ね合わせ等をやめ、素直なボタンを配置 */}
                 <div 
-                  className={`relative border-2 border-dashed rounded-2xl p-6 md:p-10 text-center transition-all duration-200 overflow-hidden ${
-                    isDragActive ? 'drag-active' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-gray-50'
+                  className={`border-2 border-dashed rounded-2xl p-6 md:p-10 text-center transition-all duration-200 ${
+                    isDragActive ? 'drag-active' : 'border-gray-300 bg-gray-50'
                   } ${isCompressing ? 'opacity-50 pointer-events-none' : ''}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <input 
-                    key={inputKey}
-                    type="file" 
-                    accept="video/*,.mp4,.mov,.m4v,.webm" 
-                    onChange={handleFileChange} 
-                    onClick={(e) => { e.target.value = ''; }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
-                    disabled={isCompressing}
-                  />
-                  <div className="flex flex-col items-center justify-center space-y-4 pointer-events-none relative z-0">
+                  <div className="flex flex-col items-center justify-center space-y-4">
                     <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                       <UploadIcon className="w-8 h-8" />
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-gray-700">タップして動画を選択</div>
-                      <div className="text-sm text-gray-500 mt-1">カメラロールから選択できます</div>
+                      <div className="text-lg font-bold text-gray-700">動画を選択してください</div>
+                      <div className="text-sm text-gray-500 mt-1">下のボタンをタップしてカメラロールを開きます</div>
                     </div>
+                    
+                    {/* ネイティブのinputを最もシンプルな形で配置 */}
+                    <input 
+                      type="file" 
+                      accept="video/*" 
+                      onChange={handleFileChange} 
+                      className="mt-4 block w-full max-w-xs mx-auto text-sm text-gray-500
+                                 file:mr-4 file:py-3 file:px-6 
+                                 file:rounded-full file:border-0 
+                                 file:text-sm file:font-semibold 
+                                 file:bg-blue-600 file:text-white 
+                                 hover:file:bg-blue-700 
+                                 cursor-pointer"
+                      disabled={isCompressing}
+                    />
                   </div>
                 </div>
 
