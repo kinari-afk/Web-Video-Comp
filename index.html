@@ -101,13 +101,16 @@
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
     );
     const SettingsIcon = ({ className }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     );
     const ScissorsIcon = ({ className }) => (
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
     );
     const VolumeXIcon = ({ className }) => (
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+    );
+    const XIcon = ({ className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
     );
 
     // --- ユーティリティ関数 ---
@@ -273,6 +276,20 @@
         } catch (err) {
           alert('ファイルの読み取りに失敗しました。iPhoneの場合、アクセス権限やiCloudの同期状況を確認してください。\n詳細: ' + err.message);
         }
+      };
+
+      // ファイルのクリア処理
+      const handleClearFile = () => {
+        setVideoFile(null);
+        setVideoUrl(null);
+        setVideoDuration(0);
+        setCompressedFileUrl(null);
+        setCompressedSize(0);
+        setProgress(0);
+        setSaveMessage('');
+        setTrimEnabled(false);
+        setTrimStart("0");
+        setTrimEnd("0");
       };
 
       // ドラッグ＆ドロップイベントハンドラ (PC向け)
@@ -464,40 +481,42 @@
             ) : (
               <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700 space-y-8">
                 
-                {/* ファイル選択エリア */}
-                <div 
-                  className={`border-2 border-dashed rounded-2xl p-6 md:p-10 text-center transition-all duration-200 ${
-                    isDragActive ? 'drag-active' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50'
-                  } ${isCompressing ? 'opacity-50 pointer-events-none' : ''}`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <div className="flex flex-col items-center justify-center space-y-4">
-                    <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                      <UploadIcon className="w-8 h-8" />
+                {/* ファイル選択エリア (ファイル未選択時のみ表示) */}
+                {!videoFile && (
+                  <div 
+                    className={`border-2 border-dashed rounded-2xl p-6 md:p-10 text-center transition-all duration-200 ${
+                      isDragActive ? 'drag-active' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50'
+                    } ${isCompressing ? 'opacity-50 pointer-events-none' : ''}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <div className="flex flex-col items-center justify-center space-y-4">
+                      <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                        <UploadIcon className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-gray-700 dark:text-gray-200">動画を選択してください</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">下のボタンをタップしてカメラロールを開きます</div>
+                      </div>
+                      
+                      <input 
+                        type="file" 
+                        accept="video/*,.mp4,.mov,.m4v,.webm" 
+                        onChange={handleFileChange} 
+                        onClick={(e) => { e.target.value = ''; }} // 同一ファイル選択でchange発火用
+                        className="mt-4 block w-full max-w-xs mx-auto text-sm text-gray-500 dark:text-gray-400
+                                   file:mr-4 file:py-3 file:px-6 
+                                   file:rounded-full file:border-0 
+                                   file:text-sm file:font-semibold 
+                                   file:bg-blue-600 file:text-white 
+                                   hover:file:bg-blue-700 dark:file:bg-blue-500 dark:hover:file:bg-blue-600
+                                   cursor-pointer transition-colors"
+                        disabled={isCompressing}
+                      />
                     </div>
-                    <div>
-                      <div className="text-lg font-bold text-gray-700 dark:text-gray-200">動画を選択してください</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">下のボタンをタップしてカメラロールを開きます</div>
-                    </div>
-                    
-                    <input 
-                      type="file" 
-                      accept="video/*,.mp4,.mov,.m4v,.webm" 
-                      onChange={handleFileChange} 
-                      onClick={(e) => { e.target.value = ''; }} // 同一ファイル選択でchange発火用
-                      className="mt-4 block w-full max-w-xs mx-auto text-sm text-gray-500 dark:text-gray-400
-                                 file:mr-4 file:py-3 file:px-6 
-                                 file:rounded-full file:border-0 
-                                 file:text-sm file:font-semibold 
-                                 file:bg-blue-600 file:text-white 
-                                 hover:file:bg-blue-700 dark:file:bg-blue-500 dark:hover:file:bg-blue-600
-                                 cursor-pointer transition-colors"
-                      disabled={isCompressing}
-                    />
                   </div>
-                </div>
+                )}
 
                 {/* --- 設定＆プレビューエリア --- */}
                 {videoFile && (
@@ -512,6 +531,16 @@
                         <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{videoFile.name || '選択された動画'}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{formatBytes(videoFile.size)}</p>
                       </div>
+                      {/* クリアボタン */}
+                      {!isCompressing && (
+                        <button 
+                          onClick={handleClearFile}
+                          className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none"
+                          title="ファイルをクリア"
+                        >
+                          <XIcon className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
 
                     {/* 動画プレビュー */}
@@ -723,7 +752,7 @@
                         <span>動画を保存 / 共有する (MP4)</span>
                       </button>
                       
-                      {/* 【追加】保存・共有完了時のメッセージ表示 */}
+                      {/* 保存・共有完了時のメッセージ表示 */}
                       {saveMessage && (
                         <div className="mt-3 p-3 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 rounded-lg text-sm text-center font-bold animate-fade-in">
                           {saveMessage}
