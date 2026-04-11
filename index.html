@@ -159,7 +159,8 @@
       const [compressionLevel, setCompressionLevel] = useLocalStorage('compressionLevel', 'medium');
       const [customResolution, setCustomResolution] = useLocalStorage('customResolution', 'original');
       const [customFps, setCustomFps] = useLocalStorage('customFps', 'original');
-      const [muteAudio, setMuteAudio] = useLocalStorage('muteAudio', false);
+      // 音声の削除は事故防止のため状態を記憶せず、常にオフをデフォルトとする
+      const [muteAudio, setMuteAudio] = useState(false);
       
       // トリミング設定
       const [trimEnabled, setTrimEnabled] = useState(false);
@@ -273,6 +274,7 @@
           setCompressedFileUrl(null);
           setProgress(0);
           setTrimEnabled(false); // ファイル変更時はトリミングをリセット
+          setMuteAudio(false); // ファイル変更時はミュート設定もリセット
         } catch (err) {
           alert('ファイルの読み取りに失敗しました。iPhoneの場合、アクセス権限やiCloudの同期状況を確認してください。\n詳細: ' + err.message);
         }
@@ -290,6 +292,7 @@
         setTrimEnabled(false);
         setTrimStart("0");
         setTrimEnd("0");
+        setMuteAudio(false); // クリア時もミュートをリセット
       };
 
       // ドラッグ＆ドロップイベントハンドラ (PC向け)
@@ -768,6 +771,13 @@
 
               </div>
             )}
+
+            {/* フッター (クレジット) */}
+            <footer className="pt-8 pb-4 text-center text-gray-500 dark:text-gray-400 text-sm flex flex-col items-center justify-center space-y-2 animate-fade-in">
+              <img src="logo_only.png" alt="KINARI Logo" className="w-12 h-12 object-contain drop-shadow-sm" />
+              <p className="font-medium tracking-wide">App creator: KINARI</p>
+            </footer>
+
           </div>
         </div>
       );
