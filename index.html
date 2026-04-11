@@ -101,7 +101,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
     );
     const SettingsIcon = ({ className }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     );
     const ScissorsIcon = ({ className }) => (
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
@@ -159,8 +159,8 @@
       
       // トリミング設定
       const [trimEnabled, setTrimEnabled] = useState(false);
-      const [trimStart, setTrimStart] = useState(0);
-      const [trimEnd, setTrimEnd] = useState(0);
+      const [trimStart, setTrimStart] = useState("0");
+      const [trimEnd, setTrimEnd] = useState("0");
 
       const initRef = useRef(false);
 
@@ -203,8 +203,8 @@
           video.onloadedmetadata = () => {
             const duration = video.duration;
             setVideoDuration(duration);
-            setTrimStart(0);
-            setTrimEnd(Math.ceil(duration)); // 終了時間を動画の長さに設定
+            setTrimStart("0");
+            setTrimEnd(Math.ceil(duration).toString()); // 終了時間を動画の長さに設定
           };
           video.src = url;
 
@@ -215,18 +215,29 @@
         }
       }, [videoFile]);
 
-      // トリミング入力の制御
+      // トリミング入力の制御 (onChange では自由に入力させる)
       const handleTrimStartChange = (e) => {
-        let val = Number(e.target.value);
-        if (val < 0) val = 0;
-        if (val >= trimEnd) val = Math.max(0, trimEnd - 1);
-        setTrimStart(val);
+        setTrimStart(e.target.value);
       };
       const handleTrimEndChange = (e) => {
-        let val = Number(e.target.value);
-        if (val <= trimStart) val = trimStart + 1;
+        setTrimEnd(e.target.value);
+      };
+
+      // フォーカスが外れたタイミング (onBlur) で初めて数値を正しい範囲に丸める
+      const handleTrimStartBlur = () => {
+        let val = Number(trimStart);
+        let endVal = Number(trimEnd);
+        if (isNaN(val) || val < 0) val = 0;
+        if (val >= endVal) val = Math.max(0, endVal - 1);
+        setTrimStart(val.toString());
+      };
+
+      const handleTrimEndBlur = () => {
+        let val = Number(trimEnd);
+        let startVal = Number(trimStart);
+        if (isNaN(val) || val <= startVal) val = startVal + 1;
         if (val > Math.ceil(videoDuration)) val = Math.ceil(videoDuration);
-        setTrimEnd(val);
+        setTrimEnd(val.toString());
       };
 
       // ファイルの読み込み処理 (強化版)
@@ -303,10 +314,16 @@
 
           let command = [];
 
-          // 【追加】トリミング処理 (処理を軽くするため入力の前に行う)
-          if (trimEnabled && trimEnd > trimStart) {
-            command.push('-ss', trimStart.toString());
-            command.push('-to', trimEnd.toString());
+          // 【修正】トリミング処理時の最終的な数値化とフォールバック
+          let tStart = Number(trimStart);
+          let tEnd = Number(trimEnd);
+          if (isNaN(tStart) || tStart < 0) tStart = 0;
+          if (isNaN(tEnd) || tEnd <= tStart) tEnd = tStart + 1;
+          if (tEnd > Math.ceil(videoDuration)) tEnd = Math.ceil(videoDuration);
+
+          if (trimEnabled && tEnd > tStart) {
+            command.push('-ss', tStart.toString());
+            command.push('-to', tEnd.toString());
           }
 
           command.push('-i', inputName);
@@ -437,7 +454,7 @@
             ) : (
               <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700 space-y-8">
                 
-                {/* ファイル選択エリア：スマホでもPCでも使いやすい洗練されたボタン */}
+                {/* ファイル選択エリア */}
                 <div 
                   className={`border-2 border-dashed rounded-2xl p-6 md:p-10 text-center transition-all duration-200 ${
                     isDragActive ? 'drag-active' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50'
@@ -487,7 +504,7 @@
                       </div>
                     </div>
 
-                    {/* 【追加】動画プレビュー */}
+                    {/* 動画プレビュー */}
                     {videoUrl && !isCompressing && !compressedFileUrl && (
                       <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black shadow-sm">
                         <video src={videoUrl} controls playsInline className="w-full max-h-64 object-contain"></video>
@@ -525,7 +542,7 @@
                       </div>
                     </div>
 
-                    {/* 【追加】カスタム設定詳細パネル */}
+                    {/* カスタム設定詳細パネル */}
                     {compressionLevel === 'custom' && (
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl space-y-4 border border-gray-200 dark:border-gray-700 animate-fade-in">
                         <div className="grid grid-cols-2 gap-4">
@@ -553,7 +570,7 @@
                       </div>
                     )}
 
-                    {/* 【追加】追加オプション (トリミング・ミュート) */}
+                    {/* 追加オプション (トリミング・ミュート) */}
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl space-y-4 border border-gray-200 dark:border-gray-700">
                       
                       {/* トリミング */}
@@ -570,9 +587,27 @@
                       
                       {trimEnabled && (
                         <div className="flex items-center space-x-2 text-sm pl-6 animate-fade-in">
-                          <input type="number" min="0" max={Math.max(0, trimEnd - 1)} value={trimStart} onChange={handleTrimStartChange} disabled={isCompressing} className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" />
+                          <input 
+                            type="number" 
+                            min="0" 
+                            max={Math.max(0, Number(trimEnd) - 1)} 
+                            value={trimStart} 
+                            onChange={handleTrimStartChange} 
+                            onBlur={handleTrimStartBlur}
+                            disabled={isCompressing} 
+                            className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" 
+                          />
                           <span className="text-gray-500 dark:text-gray-400">秒 〜</span>
-                          <input type="number" min={trimStart + 1} max={Math.ceil(videoDuration)} value={trimEnd} onChange={handleTrimEndChange} disabled={isCompressing} className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" />
+                          <input 
+                            type="number" 
+                            min={Number(trimStart) + 1} 
+                            max={Math.ceil(videoDuration)} 
+                            value={trimEnd} 
+                            onChange={handleTrimEndChange} 
+                            onBlur={handleTrimEndBlur}
+                            disabled={isCompressing} 
+                            className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" 
+                          />
                           <span className="text-gray-500 dark:text-gray-400">秒</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 ml-2 hidden sm:inline">(全体: {Math.ceil(videoDuration)}秒)</span>
                         </div>
@@ -640,7 +675,7 @@
                       <h3 className="text-lg font-bold text-green-900 dark:text-green-100">圧縮が完了しました！</h3>
                     </div>
 
-                    {/* 【追加】圧縮後の動画プレビュー */}
+                    {/* 圧縮後の動画プレビュー */}
                     <div className="rounded-xl overflow-hidden border border-green-200 dark:border-green-800 bg-black shadow-sm">
                       <video src={compressedFileUrl} controls playsInline className="w-full max-h-64 object-contain"></video>
                     </div>
