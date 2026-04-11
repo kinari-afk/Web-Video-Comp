@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>動画圧縮アプリ</title>
   
-  <!-- Tailwind CSS -->
+  <!-- Tailwind CSS (ダークモード対応) -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'media', // OSの設定に合わせて自動的にダークモードに切り替え
+    }
+  </script>
   
   <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -32,9 +37,15 @@
       border-color: #3b82f6 !important;
       background-color: #eff6ff !important;
     }
+    @media (prefers-color-scheme: dark) {
+      .drag-active {
+        border-color: #3b82f6 !important;
+        background-color: #1e3a8a !important;
+      }
+    }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans min-h-screen transition-colors duration-200">
   <div id="root"></div>
 
   <script type="text/babel">
@@ -42,7 +53,7 @@
     const { FFmpeg } = window.FFmpegWASM;
     const { toBlobURL } = window.FFmpegUtil;
 
-    // --- Workerのパッチ処理 ---
+    // --- Workerのパッチ処理 (iOS/CORS対応) ---
     if (!window.__WORKER_PATCHED__) {
       const OriginalWorker = window.Worker;
       window.Worker = class extends OriginalWorker {
@@ -59,6 +70,26 @@
       window.__WORKER_PATCHED__ = true;
     }
 
+    // --- カスタムフック (設定をブラウザに保存) ---
+    function useLocalStorage(key, initialValue) {
+      const [storedValue, setStoredValue] = useState(() => {
+        try {
+          const item = window.localStorage.getItem(key);
+          return item ? JSON.parse(item) : initialValue;
+        } catch (error) {
+          return initialValue;
+        }
+      });
+      const setValue = (value) => {
+        try {
+          const valueToStore = value instanceof Function ? value(storedValue) : value;
+          setStoredValue(valueToStore);
+          window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        } catch (error) {}
+      };
+      return [storedValue, setValue];
+    }
+
     // --- アイコンコンポーネント ---
     const UploadIcon = ({ className }) => (
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -70,7 +101,13 @@
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
     );
     const SettingsIcon = ({ className }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    );
+    const ScissorsIcon = ({ className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
+    );
+    const VolumeXIcon = ({ className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
     );
 
     // --- ユーティリティ関数 ---
@@ -89,6 +126,14 @@
       return ext && ext !== filename ? `.${ext}` : '.mp4';
     };
 
+    // 【スマホ判定強化】動画らしいファイルかどうかを拡張子・MIMEで確認
+    const isVideoLikeFile = (file) => {
+      if (!file) return false;
+      if (file.type && file.type.startsWith('video/')) return true;
+      const name = (file.name || '').toLowerCase();
+      return ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv', '.qt'].some(ext => name.endsWith(ext));
+    };
+
     // --- メインアプリケーション ---
     function App() {
       const [loaded, setLoaded] = useState(false);
@@ -96,16 +141,30 @@
       const ffmpegRef = useRef(new FFmpeg());
       
       const [videoFile, setVideoFile] = useState(null);
+      const [videoUrl, setVideoUrl] = useState(null); // プレビュー用URL
+      const [videoDuration, setVideoDuration] = useState(0); // 動画の長さ
+
       const [compressedFileUrl, setCompressedFileUrl] = useState(null);
       const [compressedSize, setCompressedSize] = useState(0);
       
       const [isCompressing, setIsCompressing] = useState(false);
       const [progress, setProgress] = useState(0);
-      const [compressionLevel, setCompressionLevel] = useState('medium');
       const [isDragActive, setIsDragActive] = useState(false);
+
+      // --- 各種設定 (localStorageに保存) ---
+      const [compressionLevel, setCompressionLevel] = useLocalStorage('compressionLevel', 'medium');
+      const [customResolution, setCustomResolution] = useLocalStorage('customResolution', 'original');
+      const [customFps, setCustomFps] = useLocalStorage('customFps', 'original');
+      const [muteAudio, setMuteAudio] = useLocalStorage('muteAudio', false);
+      
+      // トリミング設定
+      const [trimEnabled, setTrimEnabled] = useState(false);
+      const [trimStart, setTrimStart] = useState(0);
+      const [trimEnd, setTrimEnd] = useState(0);
 
       const initRef = useRef(false);
 
+      // FFmpeg初期化
       useEffect(() => {
         if (initRef.current) return;
         initRef.current = true;
@@ -133,21 +192,75 @@
         load();
       }, []);
 
-      // 【完全シンプル化】余計なチェックやリセットをすべて削除し、純粋にファイルを受け取るだけに変更
-      const handleFileChange = (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
+      // プレビューとメタデータの取得
+      useEffect(() => {
+        if (videoFile) {
+          const url = URL.createObjectURL(videoFile);
+          setVideoUrl(url);
 
-        // 最低限のサイズ制限のみ（300MB）
-        const MAX_SIZE_MB = 300;
-        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-          alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\n${MAX_SIZE_MB}MB以下の動画を選択してください。`);
-          return;
+          const video = document.createElement('video');
+          video.preload = 'metadata';
+          video.onloadedmetadata = () => {
+            const duration = video.duration;
+            setVideoDuration(duration);
+            setTrimStart(0);
+            setTrimEnd(Math.ceil(duration)); // 終了時間を動画の長さに設定
+          };
+          video.src = url;
+
+          return () => URL.revokeObjectURL(url);
+        } else {
+          setVideoUrl(null);
+          setVideoDuration(0);
         }
+      }, [videoFile]);
 
-        setVideoFile(file);
-        setCompressedFileUrl(null);
-        setProgress(0);
+      // トリミング入力の制御
+      const handleTrimStartChange = (e) => {
+        let val = Number(e.target.value);
+        if (val < 0) val = 0;
+        if (val >= trimEnd) val = Math.max(0, trimEnd - 1);
+        setTrimStart(val);
+      };
+      const handleTrimEndChange = (e) => {
+        let val = Number(e.target.value);
+        if (val <= trimStart) val = trimStart + 1;
+        if (val > Math.ceil(videoDuration)) val = Math.ceil(videoDuration);
+        setTrimEnd(val);
+      };
+
+      // ファイルの読み込み処理 (強化版)
+      const handleFileChange = async (e) => {
+        try {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+
+          if (!isVideoLikeFile(file)) {
+            alert('動画ファイルを選択してください。');
+            return;
+          }
+
+          if (file.size === 0) {
+            alert('ファイルのデータが取得できませんでした（0バイト）。iCloudからのダウンロードが完了していないか、形式が非対応の可能性があります。');
+            return;
+          }
+
+          // スマホでのNotReadableError対策: 先に読み取り可否を検証
+          await file.slice(0, 1024).arrayBuffer();
+
+          const MAX_SIZE_MB = 300;
+          if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+            alert(`ファイルサイズが大きすぎます（${formatBytes(file.size)}）。\n${MAX_SIZE_MB}MB以下の動画を選択してください。`);
+            return;
+          }
+
+          setVideoFile(file);
+          setCompressedFileUrl(null);
+          setProgress(0);
+          setTrimEnabled(false); // ファイル変更時はトリミングをリセット
+        } catch (err) {
+          alert('ファイルの読み取りに失敗しました。iPhoneの場合、アクセス権限やiCloudの同期状況を確認してください。\n詳細: ' + err.message);
+        }
       };
 
       // ドラッグ＆ドロップイベントハンドラ (PC向け)
@@ -166,14 +279,8 @@
         
         const file = e.dataTransfer.files && e.dataTransfer.files[0];
         if (file) {
-          const MAX_SIZE_MB = 300;
-          if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-            alert(`ファイルサイズが大きすぎます。\n${MAX_SIZE_MB}MB以下の動画を選択してください。`);
-            return;
-          }
-          setVideoFile(file);
-          setCompressedFileUrl(null);
-          setProgress(0);
+          // ドラッグ＆ドロップ用もファイルチェンジのロジックを通すため擬似イベント作成
+          handleFileChange({ target: { files: [file] } });
         }
       };
 
@@ -190,10 +297,19 @@
         const outputName = 'output.mp4';
 
         try {
+          // 安定性を高めるため arrayBuffer() + Uint8Array を使用
           const inputBuffer = await videoFile.arrayBuffer();
           await ffmpeg.writeFile(inputName, new Uint8Array(inputBuffer));
 
-          let command = ['-i', inputName];
+          let command = [];
+
+          // 【追加】トリミング処理 (処理を軽くするため入力の前に行う)
+          if (trimEnabled && trimEnd > trimStart) {
+            command.push('-ss', trimStart.toString());
+            command.push('-to', trimEnd.toString());
+          }
+
+          command.push('-i', inputName);
           command.push('-vcodec', 'libx264');
           command.push('-pix_fmt', 'yuv420p');
           
@@ -205,11 +321,25 @@
           } else if (compressionLevel === 'high') {
             command.push('-crf', '32');
             command.push('-vf', 'scale=-2:480'); 
+          } else if (compressionLevel === 'custom') {
+            command.push('-crf', '28'); // カスタム時の基本画質
+            if (customResolution !== 'original') {
+              command.push('-vf', `scale=-2:${customResolution}`);
+            }
+            if (customFps !== 'original') {
+              command.push('-r', customFps);
+            }
+          }
+
+          // 【追加】ミュート処理
+          if (muteAudio) {
+            command.push('-an');
+          } else {
+            command.push('-acodec', 'aac'); 
           }
 
           command.push('-threads', '1');
           command.push('-preset', 'fast');
-          command.push('-acodec', 'aac'); 
           command.push(outputName);
 
           await ffmpeg.exec(command);
@@ -239,24 +369,16 @@
         const filename = `compressed_${(videoFile.name || 'video').replace(/\.[^/.]+$/, "")}.mp4`;
 
         try {
-          // URLからBlobを再取得してFileオブジェクトを作成
           const response = await fetch(compressedFileUrl);
           const blob = await response.blob();
           const file = new File([blob], filename, { type: 'video/mp4' });
 
-          // Web Share API がファイルをサポートしているかチェック (スマホ向け)
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: filename
-            });
+            await navigator.share({ files: [file], title: filename });
           } else {
-            // サポートしていない場合 (PC等) は従来のダウンロード
             triggerDownload(compressedFileUrl, filename);
           }
         } catch (error) {
-          console.error('保存エラー:', error);
-          // エラーが起きた場合やシェアをキャンセルした場合もフォールバック
           if (error.name !== 'AbortError') {
              triggerDownload(compressedFileUrl, filename);
           }
@@ -277,19 +399,19 @@
           <div className="max-w-2xl mx-auto space-y-8">
             {/* ヘッダー */}
             <header className="text-center space-y-3 mt-4">
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
                 Web Video Compressor
               </h1>
-              <p className="text-gray-500 text-sm md:text-base">
-                サーバーにアップロードせず、ブラウザ内で安全に動画を圧縮します。
+              <p className="text-gray-500 dark:text-gray-400 text-sm md:text-base">
+                サーバーにアップロードせず、ブラウザ内で安全に動画を編集・圧縮します。
               </p>
-              <div className="text-xs text-gray-500 bg-gray-100 p-3 rounded-xl inline-block text-left mt-2 border border-gray-200">
-                <p className="font-bold mb-1 text-gray-700">💡 ご利用の目安と注意</p>
+              <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 p-3 rounded-xl inline-block text-left mt-2 border border-gray-200 dark:border-gray-700">
+                <p className="font-bold mb-1 text-gray-700 dark:text-gray-300">💡 ご利用の目安と注意</p>
                 <ul className="list-disc list-inside space-y-1">
                   <li><strong>スマホ:</strong> 数分程度の短い動画（目安: 300MB以下）</li>
                   <li><strong>PC:</strong> より大きな動画も処理可能（Chrome推奨）</li>
                 </ul>
-                <div className="mt-2 text-red-500 font-semibold bg-red-50 p-2 rounded">
+                <div className="mt-2 text-red-500 dark:text-red-400 font-semibold bg-red-50 dark:bg-red-900/20 p-2 rounded">
                   【重要】iPhoneで動画を選択した際、OS側で動画の準備を行うため、画面が数秒〜数十秒ほど固まったように見える場合があります。そのままお待ちください。
                 </div>
               </div>
@@ -297,7 +419,7 @@
 
             {/* メインコンテンツ */}
             {loadError ? (
-              <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-6 rounded-2xl text-center">
                 <p className="font-bold mb-2">読み込みエラー</p>
                 <p className="text-sm">
                   動画処理エンジンの読み込みに失敗しました。<br/>
@@ -305,114 +427,179 @@
                 </p>
               </div>
             ) : !loaded ? (
-              <div className="bg-white p-10 rounded-3xl shadow-sm border border-gray-200 text-center space-y-5">
+              <div className="bg-white dark:bg-gray-800 p-10 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700 text-center space-y-5">
                 <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
                 <div>
-                  <p className="text-gray-700 font-medium">システムの準備中...</p>
-                  <p className="text-xs text-gray-400 mt-2">初回アクセス時はファイルのダウンロードに少し時間がかかります（約30MB）。</p>
+                  <p className="text-gray-700 dark:text-gray-300 font-medium">システムの準備中...</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">初回アクセス時はエンジンのダウンロードに少し時間がかかります（約30MB）。</p>
                 </div>
               </div>
             ) : (
-              <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 border border-gray-100 space-y-8">
+              <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700 space-y-8">
                 
-                {/* ファイル選択エリア：透明inputの重ね合わせ等をやめ、素直なボタンを配置 */}
+                {/* ファイル選択エリア：スマホでもPCでも使いやすい洗練されたボタン */}
                 <div 
                   className={`border-2 border-dashed rounded-2xl p-6 md:p-10 text-center transition-all duration-200 ${
-                    isDragActive ? 'drag-active' : 'border-gray-300 bg-gray-50'
+                    isDragActive ? 'drag-active' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50'
                   } ${isCompressing ? 'opacity-50 pointer-events-none' : ''}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
                   <div className="flex flex-col items-center justify-center space-y-4">
-                    <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                    <div className={`p-4 rounded-full ${isDragActive ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                       <UploadIcon className="w-8 h-8" />
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-gray-700">動画を選択してください</div>
-                      <div className="text-sm text-gray-500 mt-1">下のボタンをタップしてカメラロールを開きます</div>
+                      <div className="text-lg font-bold text-gray-700 dark:text-gray-200">動画を選択してください</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">下のボタンをタップしてカメラロールを開きます</div>
                     </div>
                     
-                    {/* ネイティブのinputを最もシンプルな形で配置 */}
                     <input 
                       type="file" 
-                      accept="video/*" 
+                      accept="video/*,.mp4,.mov,.m4v,.webm" 
                       onChange={handleFileChange} 
-                      className="mt-4 block w-full max-w-xs mx-auto text-sm text-gray-500
+                      onClick={(e) => { e.target.value = ''; }} // 同一ファイル選択でchange発火用
+                      className="mt-4 block w-full max-w-xs mx-auto text-sm text-gray-500 dark:text-gray-400
                                  file:mr-4 file:py-3 file:px-6 
                                  file:rounded-full file:border-0 
                                  file:text-sm file:font-semibold 
                                  file:bg-blue-600 file:text-white 
-                                 hover:file:bg-blue-700 
-                                 cursor-pointer"
+                                 hover:file:bg-blue-700 dark:file:bg-blue-500 dark:hover:file:bg-blue-600
+                                 cursor-pointer transition-colors"
                       disabled={isCompressing}
                     />
                   </div>
                 </div>
 
-                {/* ファイル情報と設定エリア */}
+                {/* --- 設定＆プレビューエリア --- */}
                 {videoFile && (
                   <div className="space-y-6 animate-fade-in">
                     
                     {/* ファイル情報 */}
-                    <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="p-3 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                    <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                      <div className="p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
                         <VideoIcon className="w-6 h-6" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-gray-900 truncate">{videoFile.name || '選択された動画'}</p>
-                        <p className="text-sm text-gray-500">{formatBytes(videoFile.size)}</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{videoFile.name || '選択された動画'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatBytes(videoFile.size)}</p>
                       </div>
                     </div>
+
+                    {/* 【追加】動画プレビュー */}
+                    {videoUrl && !isCompressing && !compressedFileUrl && (
+                      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black shadow-sm">
+                        <video src={videoUrl} controls playsInline className="w-full max-h-64 object-contain"></video>
+                      </div>
+                    )}
+
+                    <hr className="border-gray-200 dark:border-gray-700" />
 
                     {/* 圧縮設定 */}
                     <div className="space-y-3">
-                      <h3 className="text-sm font-bold text-gray-700 flex items-center space-x-2">
-                        <SettingsIcon className="w-4 h-4 text-gray-500" />
-                        <span>圧縮の強さ</span>
+                      <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center space-x-2">
+                        <SettingsIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        <span>圧縮設定 (画質とサイズ)</span>
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <button 
-                          onClick={() => setCompressionLevel('low')} 
-                          disabled={isCompressing}
-                          className={`p-4 border-2 rounded-xl text-left transition-all ${
-                            compressionLevel === 'low' ? 'bg-blue-50 border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
-                          }`}
-                        >
-                          <div className={`font-bold ${compressionLevel === 'low' ? 'text-blue-700' : 'text-gray-700'}`}>弱圧縮</div>
-                          <div className="text-xs text-gray-500 mt-1">画質を維持して容量を少し減らします。</div>
-                        </button>
-
-                        <button 
-                          onClick={() => setCompressionLevel('medium')} 
-                          disabled={isCompressing}
-                          className={`p-4 border-2 rounded-xl text-left transition-all ${
-                            compressionLevel === 'medium' ? 'bg-blue-50 border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
-                          }`}
-                        >
-                          <div className={`font-bold ${compressionLevel === 'medium' ? 'text-blue-700' : 'text-gray-700'}`}>標準圧縮 (推奨)</div>
-                          <div className="text-xs text-gray-500 mt-1">画質と容量のバランスが良い設定 (720p)。</div>
-                        </button>
-
-                        <button 
-                          onClick={() => setCompressionLevel('high')} 
-                          disabled={isCompressing}
-                          className={`p-4 border-2 rounded-xl text-left transition-all ${
-                            compressionLevel === 'high' ? 'bg-blue-50 border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
-                          }`}
-                        >
-                          <div className={`font-bold ${compressionLevel === 'high' ? 'text-blue-700' : 'text-gray-700'}`}>強圧縮</div>
-                          <div className="text-xs text-gray-500 mt-1">画質を落として容量を大幅に削減 (480p)。</div>
-                        </button>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {['low', 'medium', 'high', 'custom'].map(level => (
+                          <button 
+                            key={level}
+                            onClick={() => setCompressionLevel(level)} 
+                            disabled={isCompressing}
+                            className={`p-3 border-2 rounded-xl text-center transition-all ${
+                              compressionLevel === level 
+                                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-300 shadow-sm' 
+                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50'
+                            }`}
+                          >
+                            <div className="font-bold text-sm">
+                              {level === 'low' && '弱圧縮'}
+                              {level === 'medium' && '標準 (推奨)'}
+                              {level === 'high' && '強圧縮'}
+                              {level === 'custom' && 'カスタム'}
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     </div>
 
+                    {/* 【追加】カスタム設定詳細パネル */}
+                    {compressionLevel === 'custom' && (
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl space-y-4 border border-gray-200 dark:border-gray-700 animate-fade-in">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">解像度</label>
+                            <select value={customResolution} onChange={e => setCustomResolution(e.target.value)} disabled={isCompressing} className="w-full p-2 text-sm border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                              <option value="original">元のまま</option>
+                              <option value="1080">1080p</option>
+                              <option value="720">720p</option>
+                              <option value="480">480p</option>
+                              <option value="360">360p</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">フレームレート (FPS)</label>
+                            <select value={customFps} onChange={e => setCustomFps(e.target.value)} disabled={isCompressing} className="w-full p-2 text-sm border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                              <option value="original">元のまま</option>
+                              <option value="60">60</option>
+                              <option value="30">30</option>
+                              <option value="24">24</option>
+                              <option value="15">15</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 【追加】追加オプション (トリミング・ミュート) */}
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl space-y-4 border border-gray-200 dark:border-gray-700">
+                      
+                      {/* トリミング */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <ScissorsIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">動画をトリミング (一部を切り出す)</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" checked={trimEnabled} onChange={() => setTrimEnabled(!trimEnabled)} disabled={isCompressing || !videoDuration} />
+                          <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-500 peer-checked:bg-blue-500"></div>
+                        </label>
+                      </div>
+                      
+                      {trimEnabled && (
+                        <div className="flex items-center space-x-2 text-sm pl-6 animate-fade-in">
+                          <input type="number" min="0" max={Math.max(0, trimEnd - 1)} value={trimStart} onChange={handleTrimStartChange} disabled={isCompressing} className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" />
+                          <span className="text-gray-500 dark:text-gray-400">秒 〜</span>
+                          <input type="number" min={trimStart + 1} max={Math.ceil(videoDuration)} value={trimEnd} onChange={handleTrimEndChange} disabled={isCompressing} className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" />
+                          <span className="text-gray-500 dark:text-gray-400">秒</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 ml-2 hidden sm:inline">(全体: {Math.ceil(videoDuration)}秒)</span>
+                        </div>
+                      )}
+
+                      <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                      {/* 音声ミュート */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <VolumeXIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">音声を削除 (容量をさらに減らす)</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" checked={muteAudio} onChange={() => setMuteAudio(!muteAudio)} disabled={isCompressing} />
+                          <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-500 peer-checked:bg-blue-500"></div>
+                        </label>
+                      </div>
+
+                    </div>
+
                     {/* 実行ボタンとプログレス */}
-                    <div className="pt-2">
+                    <div className="pt-4">
                       <button 
                         onClick={compressVideo}
                         disabled={isCompressing}
-                        className="w-full py-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg shadow-gray-900/20"
+                        className="w-full py-4 bg-gray-900 hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg shadow-gray-900/20 dark:shadow-none"
                       >
                         {isCompressing ? (
                           <>
@@ -420,13 +607,13 @@
                             <span>処理中... {progress}%</span>
                           </>
                         ) : (
-                          <span>この設定で動画を圧縮する</span>
+                          <span>この設定で動画を圧縮・編集する</span>
                         )}
                       </button>
 
                       {isCompressing && (
                         <div className="mt-5 space-y-2 animate-fade-in">
-                          <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
+                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 overflow-hidden shadow-inner">
                             <div 
                               className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out relative overflow-hidden" 
                               style={{ width: `${progress}%` }}
@@ -434,8 +621,8 @@
                               <div className="absolute top-0 left-0 right-0 bottom-0 bg-white/20 animate-[pulse_1s_ease-in-out_infinite]"></div>
                             </div>
                           </div>
-                          <p className="text-xs text-gray-500 text-center font-medium">
-                            他のアプリを開いたり、画面をロックしないでください
+                          <p className="text-xs text-gray-500 dark:text-gray-400 text-center font-medium">
+                            処理中は他のアプリを開いたり、画面をロックしないでください
                           </p>
                         </div>
                       )}
@@ -445,31 +632,36 @@
 
                 {/* 完了結果 */}
                 {compressedFileUrl && !isCompressing && (
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-6 rounded-2xl space-y-6 animate-fade-in">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 p-6 rounded-2xl space-y-6 animate-fade-in">
                     <div className="text-center">
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 text-green-600 rounded-full mb-3">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full mb-3">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                       </div>
-                      <h3 className="text-lg font-bold text-green-900">圧縮が完了しました！</h3>
+                      <h3 className="text-lg font-bold text-green-900 dark:text-green-100">圧縮が完了しました！</h3>
+                    </div>
+
+                    {/* 【追加】圧縮後の動画プレビュー */}
+                    <div className="rounded-xl overflow-hidden border border-green-200 dark:border-green-800 bg-black shadow-sm">
+                      <video src={compressedFileUrl} controls playsInline className="w-full max-h-64 object-contain"></video>
                     </div>
                     
-                    <div className="bg-white rounded-xl p-5 border border-green-100 shadow-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-green-100 dark:border-green-800/50 shadow-sm">
                       <div className="flex items-center justify-around">
                         <div className="text-center">
-                          <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">元のサイズ</div>
-                          <div className="text-xl font-medium text-gray-600">{formatBytes(videoFile.size)}</div>
+                          <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">元のサイズ</div>
+                          <div className="text-xl font-medium text-gray-600 dark:text-gray-300">{formatBytes(videoFile.size)}</div>
                         </div>
-                        <div className="text-gray-300">
+                        <div className="text-gray-300 dark:text-gray-600">
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">圧縮後のサイズ</div>
-                          <div className="text-2xl font-extrabold text-green-700">{formatBytes(compressedSize)}</div>
+                          <div className="text-xs font-bold text-green-600 dark:text-green-500 uppercase tracking-wider mb-1">圧縮後のサイズ</div>
+                          <div className="text-2xl font-extrabold text-green-700 dark:text-green-400">{formatBytes(compressedSize)}</div>
                         </div>
                       </div>
                       
-                      <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                        <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm font-bold rounded-full">
+                      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 text-center">
+                        <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 text-sm font-bold rounded-full">
                           {Math.round((1 - compressedSize / videoFile.size) * 100)}% 削減！
                         </span>
                       </div>
@@ -478,12 +670,12 @@
                     <div>
                       <button 
                         onClick={handleSaveVideo}
-                        className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-green-600/20"
+                        className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-green-600/20 dark:shadow-none"
                       >
                         <DownloadIcon className="w-5 h-5" />
                         <span>動画を保存 / 共有する (MP4)</span>
                       </button>
-                      <p className="text-xs text-green-800 text-center mt-3 font-medium">
+                      <p className="text-xs text-green-800 dark:text-green-400 text-center mt-3 font-medium">
                         ※iPhoneの場合はメニューから「ビデオを保存」を、Androidの場合は任意の保存先（Googleフォトなど）を選択してください。
                       </p>
                     </div>
