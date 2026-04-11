@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>動画圧縮アプリ</title>
   
   <!-- Tailwind CSS (ダークモード対応) -->
@@ -101,7 +101,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
     );
     const SettingsIcon = ({ className }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     );
     const ScissorsIcon = ({ className }) => (
       <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
@@ -150,6 +150,7 @@
       const [isCompressing, setIsCompressing] = useState(false);
       const [progress, setProgress] = useState(0);
       const [isDragActive, setIsDragActive] = useState(false);
+      const [saveMessage, setSaveMessage] = useState(''); // 保存完了メッセージ用
 
       // --- 各種設定 (localStorageに保存) ---
       const [compressionLevel, setCompressionLevel] = useLocalStorage('compressionLevel', 'medium');
@@ -302,6 +303,7 @@
         setIsCompressing(true);
         setProgress(0);
         setCompressedFileUrl(null);
+        setSaveMessage(''); // 圧縮開始時にメッセージをクリア
 
         const ffmpeg = ffmpegRef.current;
         const inputName = 'input' + getExtension(videoFile.name || 'video.mp4');
@@ -314,7 +316,7 @@
 
           let command = [];
 
-          // 【修正】トリミング処理時の最終的な数値化とフォールバック
+          // トリミング処理時の最終的な数値化とフォールバック
           let tStart = Number(trimStart);
           let tEnd = Number(trimEnd);
           if (isNaN(tStart) || tStart < 0) tStart = 0;
@@ -348,7 +350,7 @@
             }
           }
 
-          // 【追加】ミュート処理
+          // ミュート処理
           if (muteAudio) {
             command.push('-an');
           } else {
@@ -392,14 +394,22 @@
 
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ files: [file], title: filename });
+            setSaveMessage('共有/保存が完了しました！');
           } else {
             triggerDownload(compressedFileUrl, filename);
+            setSaveMessage('ダウンロードを開始しました！');
           }
         } catch (error) {
           if (error.name !== 'AbortError') {
              triggerDownload(compressedFileUrl, filename);
+             setSaveMessage('ダウンロードを開始しました！');
           }
         }
+        
+        // 3秒後にメッセージをクリア
+        setTimeout(() => {
+          setSaveMessage('');
+        }, 3000);
       };
 
       const triggerDownload = (url, filename) => {
@@ -548,7 +558,8 @@
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">解像度</label>
-                            <select value={customResolution} onChange={e => setCustomResolution(e.target.value)} disabled={isCompressing} className="w-full p-2 text-sm border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                            {/* スマホの自動ズームを防ぐため text-base (16px) を適用 */}
+                            <select value={customResolution} onChange={e => setCustomResolution(e.target.value)} disabled={isCompressing} className="w-full p-2 text-base border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                               <option value="original">元のまま</option>
                               <option value="1080">1080p</option>
                               <option value="720">720p</option>
@@ -558,7 +569,7 @@
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">フレームレート (FPS)</label>
-                            <select value={customFps} onChange={e => setCustomFps(e.target.value)} disabled={isCompressing} className="w-full p-2 text-sm border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <select value={customFps} onChange={e => setCustomFps(e.target.value)} disabled={isCompressing} className="w-full p-2 text-base border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                               <option value="original">元のまま</option>
                               <option value="60">60</option>
                               <option value="30">30</option>
@@ -587,6 +598,7 @@
                       
                       {trimEnabled && (
                         <div className="flex items-center space-x-2 text-sm pl-6 animate-fade-in">
+                          {/* スマホの自動ズームを防ぐため text-base (16px) を適用 */}
                           <input 
                             type="number" 
                             min="0" 
@@ -595,7 +607,7 @@
                             onChange={handleTrimStartChange} 
                             onBlur={handleTrimStartBlur}
                             disabled={isCompressing} 
-                            className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" 
+                            className="w-16 p-1 text-base text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" 
                           />
                           <span className="text-gray-500 dark:text-gray-400">秒 〜</span>
                           <input 
@@ -606,7 +618,7 @@
                             onChange={handleTrimEndChange} 
                             onBlur={handleTrimEndBlur}
                             disabled={isCompressing} 
-                            className="w-16 p-1 text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" 
+                            className="w-16 p-1 text-base text-center border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" 
                           />
                           <span className="text-gray-500 dark:text-gray-400">秒</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 ml-2 hidden sm:inline">(全体: {Math.ceil(videoDuration)}秒)</span>
@@ -710,6 +722,14 @@
                         <DownloadIcon className="w-5 h-5" />
                         <span>動画を保存 / 共有する (MP4)</span>
                       </button>
+                      
+                      {/* 【追加】保存・共有完了時のメッセージ表示 */}
+                      {saveMessage && (
+                        <div className="mt-3 p-3 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 rounded-lg text-sm text-center font-bold animate-fade-in">
+                          {saveMessage}
+                        </div>
+                      )}
+
                       <p className="text-xs text-green-800 dark:text-green-400 text-center mt-3 font-medium">
                         ※iPhoneの場合はメニューから「ビデオを保存」を、Androidの場合は任意の保存先（Googleフォトなど）を選択してください。
                       </p>
